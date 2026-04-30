@@ -1,0 +1,550 @@
+<?xml version="1.0"?>
+<robot name="my_12dof_quadruped">
+
+  <!--
+    Generated from the latest Chinese URDF measurement sheet.
+    Coordinate convention: x forward, y left, z up.
+    URDF zero is the mechanical zero defined in sheet 04, not the STM32 power-on mechanical limit.
+    Default standing joint positions should be set in Isaac Lab InitialStateCfg.joint_pos; they are listed near the end of this file.
+  -->
+
+  <material name="body_gray">
+    <color rgba="0.45 0.45 0.45 1"/>
+  </material>
+  <material name="hip_red">
+    <color rgba="0.80 0.12 0.12 1"/>
+  </material>
+  <material name="thigh_blue">
+    <color rgba="0.10 0.25 0.85 1"/>
+  </material>
+  <material name="calf_green">
+    <color rgba="0.10 0.65 0.20 1"/>
+  </material>
+  <material name="foot_black">
+    <color rgba="0.02 0.02 0.02 1"/>
+  </material>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <mass value="3.986000"/>
+      <inertia ixx="0.035508617" ixy="0" ixz="0" iyy="0.041349435" iyz="0" izz="0.065630819"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.328000 0.300000 0.130000"/>
+      </geometry>
+      <material name="body_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.328000 0.300000 0.130000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- LF leg -->
+  <link name="LF_hip_link">
+    <inertial>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <mass value="0.789000"/>
+      <inertia ixx="0.000662494" ixy="0" ixz="0" iyy="0.000328750" iyz="0" izz="0.000662494"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+      <material name="hip_red"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LF_thigh_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <mass value="0.865000"/>
+      <inertia ixx="0.003295722" ixy="0" ixz="0" iyy="0.003295722" iyz="0" izz="0.000230667"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+      <material name="thigh_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LF_calf_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <mass value="0.277000"/>
+      <inertia ixx="0.001345386" ixy="0" ixz="0" iyy="0.001345386" iyz="0" izz="0.000056554"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+      <material name="calf_green"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LF_foot_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <mass value="0.058000"/>
+      <inertia ixx="0.000013363" ixy="0" ixz="0" iyy="0.000013363" iyz="0" izz="0.000013363"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LF_HAA" type="revolute">
+    <parent link="base_link"/>
+    <child link="LF_hip_link"/>
+    <origin xyz="0.232340 0.096600 0.000000" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LF_HFE" type="revolute">
+    <parent link="LF_hip_link"/>
+    <child link="LF_thigh_link"/>
+    <origin xyz="0.000000 0.087040 0.000000" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LF_KFE" type="revolute">
+    <parent link="LF_thigh_link"/>
+    <child link="LF_calf_link"/>
+    <origin xyz="0.000000 0.000000 -0.210050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.333505210" upper="-0.483456203" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LF_foot_fixed" type="fixed">
+    <parent link="LF_calf_link"/>
+    <child link="LF_foot_link"/>
+    <origin xyz="0.000000 0.000000 -0.238870" rpy="0 0 0"/>
+  </joint>
+
+  <!-- RF leg -->
+  <link name="RF_hip_link">
+    <inertial>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <mass value="0.789000"/>
+      <inertia ixx="0.000662494" ixy="0" ixz="0" iyy="0.000328750" iyz="0" izz="0.000662494"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+      <material name="hip_red"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RF_thigh_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <mass value="0.865000"/>
+      <inertia ixx="0.003295722" ixy="0" ixz="0" iyy="0.003295722" iyz="0" izz="0.000230667"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+      <material name="thigh_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RF_calf_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <mass value="0.277000"/>
+      <inertia ixx="0.001345386" ixy="0" ixz="0" iyy="0.001345386" iyz="0" izz="0.000056554"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+      <material name="calf_green"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RF_foot_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <mass value="0.058000"/>
+      <inertia ixx="0.000013363" ixy="0" ixz="0" iyy="0.000013363" iyz="0" izz="0.000013363"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="RF_HAA" type="revolute">
+    <parent link="base_link"/>
+    <child link="RF_hip_link"/>
+    <origin xyz="0.232340 -0.096600 0.000000" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-1.570796327" upper="0.785398163" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RF_HFE" type="revolute">
+    <parent link="RF_hip_link"/>
+    <child link="RF_thigh_link"/>
+    <origin xyz="0.000000 -0.087040 0.000000" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RF_KFE" type="revolute">
+    <parent link="RF_thigh_link"/>
+    <child link="RF_calf_link"/>
+    <origin xyz="0.000000 0.000000 -0.210050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.333505210" upper="-0.483456203" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RF_foot_fixed" type="fixed">
+    <parent link="RF_calf_link"/>
+    <child link="RF_foot_link"/>
+    <origin xyz="0.000000 0.000000 -0.238870" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LH leg -->
+  <link name="LH_hip_link">
+    <inertial>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <mass value="0.789000"/>
+      <inertia ixx="0.000662494" ixy="0" ixz="0" iyy="0.000328750" iyz="0" izz="0.000662494"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+      <material name="hip_red"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LH_thigh_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <mass value="0.865000"/>
+      <inertia ixx="0.003295722" ixy="0" ixz="0" iyy="0.003295722" iyz="0" izz="0.000230667"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+      <material name="thigh_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LH_calf_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <mass value="0.277000"/>
+      <inertia ixx="0.001345386" ixy="0" ixz="0" iyy="0.001345386" iyz="0" izz="0.000056554"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+      <material name="calf_green"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="LH_foot_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <mass value="0.058000"/>
+      <inertia ixx="0.000013363" ixy="0" ixz="0" iyy="0.000013363" iyz="0" izz="0.000013363"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LH_HAA" type="revolute">
+    <parent link="base_link"/>
+    <child link="LH_hip_link"/>
+    <origin xyz="-0.232340 0.096600 0.000000" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LH_HFE" type="revolute">
+    <parent link="LH_hip_link"/>
+    <child link="LH_thigh_link"/>
+    <origin xyz="0.000000 0.087040 0.000000" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LH_KFE" type="revolute">
+    <parent link="LH_thigh_link"/>
+    <child link="LH_calf_link"/>
+    <origin xyz="0.000000 0.000000 -0.210050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.333505210" upper="-0.483456203" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="LH_foot_fixed" type="fixed">
+    <parent link="LH_calf_link"/>
+    <child link="LH_foot_link"/>
+    <origin xyz="0.000000 0.000000 -0.238870" rpy="0 0 0"/>
+  </joint>
+
+  <!-- RH leg -->
+  <link name="RH_hip_link">
+    <inertial>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <mass value="0.789000"/>
+      <inertia ixx="0.000662494" ixy="0" ixz="0" iyy="0.000328750" iyz="0" izz="0.000662494"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+      <material name="hip_red"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 -0.043520 0.000000" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.050000 0.087040 0.050000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RH_thigh_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <mass value="0.865000"/>
+      <inertia ixx="0.003295722" ixy="0" ixz="0" iyy="0.003295722" iyz="0" izz="0.000230667"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+      <material name="thigh_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.105025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040000 0.040000 0.210050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RH_calf_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <mass value="0.277000"/>
+      <inertia ixx="0.001345386" ixy="0" ixz="0" iyy="0.001345386" iyz="0" izz="0.000056554"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+      <material name="calf_green"/>
+    </visual>
+    <collision>
+      <origin xyz="0.000000 0.000000 -0.119435" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035000 0.035000 0.238870"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="RH_foot_link">
+    <inertial>
+      <origin xyz="0.000000 0.000000 0.000000" rpy="0 0 0"/>
+      <mass value="0.058000"/>
+      <inertia ixx="0.000013363" ixy="0" ixz="0" iyy="0.000013363" iyz="0" izz="0.000013363"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+      <material name="foot_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.024000"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="RH_HAA" type="revolute">
+    <parent link="base_link"/>
+    <child link="RH_hip_link"/>
+    <origin xyz="-0.232340 -0.096600 0.000000" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-1.570796327" upper="0.785398163" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RH_HFE" type="revolute">
+    <parent link="RH_hip_link"/>
+    <child link="RH_thigh_link"/>
+    <origin xyz="0.000000 -0.087040 0.000000" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.785398163" upper="1.570796327" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RH_KFE" type="revolute">
+    <parent link="RH_thigh_link"/>
+    <child link="RH_calf_link"/>
+    <origin xyz="0.000000 0.000000 -0.210050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.333505210" upper="-0.483456203" effort="23.700000" velocity="30.000000"/>
+    <dynamics damping="0.100000" friction="0.000000"/>
+  </joint>
+
+  <joint name="RH_foot_fixed" type="fixed">
+    <parent link="RH_calf_link"/>
+    <child link="RH_foot_link"/>
+    <origin xyz="0.000000 0.000000 -0.238870" rpy="0 0 0"/>
+  </joint>
+
+  <!--
+    Recommended Isaac Lab default standing joint_pos (rad):
+    LF_HAA: -0.027960175
+    LF_HFE:  1.019115204
+    LF_KFE: -1.519047314
+    RF_HAA:  0.027960175
+    RF_HFE:  1.019115204
+    RF_KFE: -1.519047314
+    LH_HAA: -0.027960175
+    LH_HFE:  1.019115204
+    LH_KFE: -1.519047314
+    RH_HAA:  0.027960175
+    RH_HFE:  1.019115204
+    RH_KFE: -1.519047314
+
+    STM32 power-on mechanical-limit pose, matching g_joint_offset_rad (rad):
+    LF_HAA:  0.787420180
+    LF_HFE:  0.974772740
+    LF_KFE: -2.285358700
+    RF_HAA: -0.787420180
+    RF_HFE:  0.974772740
+    RF_KFE: -2.285358700
+    LH_HAA:  0.787420180
+    LH_HFE:  0.974772740
+    LH_KFE: -2.285358700
+    RH_HAA: -0.787420180
+    RH_HFE:  0.974772740
+    RH_KFE: -2.285358700
+  -->
+
+</robot>
