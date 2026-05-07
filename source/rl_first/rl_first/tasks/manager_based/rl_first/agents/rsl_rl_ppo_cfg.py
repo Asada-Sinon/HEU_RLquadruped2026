@@ -13,7 +13,7 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 50000
     save_interval = 100
-    experiment_name = "Go2_velocity_demo"
+    experiment_name = "my_quad_flat_reward_rand_v1"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
