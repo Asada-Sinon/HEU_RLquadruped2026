@@ -55,9 +55,9 @@ MY_QUAD_CFG = ArticulationCfg(
             effort_limit=23.7,
             saturation_effort=23.7,
             velocity_limit=30.0,
-            stiffness=25.0,
-            damping=0.5,
-            friction=0.0,
+            stiffness=20.0,
+            damping=0.4,
+            friction=0.03,
         ),
     },
 )
