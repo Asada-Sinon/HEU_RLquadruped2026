@@ -27,24 +27,42 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="MuJoCo sim2sim runner for the MyQuad IsaacLab policy.")
+    parser = argparse.ArgumentParser(
+        description="MuJoCo sim2sim runner for the MyQuad IsaacLab policy."
+    )
     parser.add_argument(
         "--config",
         type=Path,
         default=Path("sim2sim_mujoco/configs/my_quad.yaml"),
         help="Path to the sim2sim YAML config.",
     )
-    parser.add_argument("--policy", type=Path, default=None, help="Override ONNX policy path.")
-    parser.add_argument("--urdf", type=Path, default=None, help="Override robot URDF path.")
-    parser.add_argument("--duration", type=float, default=None, help="Optional simulation duration in seconds.")
-    parser.add_argument("--no-viewer", action="store_true", help="Run without the MuJoCo viewer.")
+    parser.add_argument(
+        "--policy", type=Path, default=None, help="Override ONNX policy path."
+    )
+    parser.add_argument(
+        "--urdf", type=Path, default=None, help="Override robot URDF path."
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=None,
+        help="Optional simulation duration in seconds.",
+    )
+    parser.add_argument(
+        "--no-viewer", action="store_true", help="Run without the MuJoCo viewer."
+    )
     parser.add_argument(
         "--height-scan-value",
         type=float,
         default=None,
-        help="Constant flat-ground height scan value used in the observation.",
+        help="Deprecated; ignored because the sim2real policy no longer uses height_scan.",
     )
-    parser.add_argument("--log", type=Path, default=None, help="Optional .npz path for saving policy-step trace data.")
+    parser.add_argument(
+        "--log",
+        type=Path,
+        default=None,
+        help="Optional .npz path for saving policy-step trace data.",
+    )
     return parser.parse_args()
 
 
@@ -85,7 +103,13 @@ def rotate_world_to_body(quat_wxyz: np.ndarray, vector_world: np.ndarray) -> np.
 
 
 class CommandState:
-    def __init__(self, default_command: np.ndarray, limits: dict[str, list[float]], linear_step: float, angular_step: float):
+    def __init__(
+        self,
+        default_command: np.ndarray,
+        limits: dict[str, list[float]],
+        linear_step: float,
+        angular_step: float,
+    ):
         self.command = default_command.astype(np.float32)
         self.limits = limits
         self.linear_step = linear_step
@@ -119,7 +143,9 @@ class CommandState:
             else:
                 return
         self.clip()
-        print(f"[command] vx={self.command[0]: .2f}, vy={self.command[1]: .2f}, wz={self.command[2]: .2f}")
+        print(
+            f"[command] vx={self.command[0]: .2f}, vy={self.command[1]: .2f}, wz={self.command[2]: .2f}"
+        )
 
 
 class OnnxPolicy:
@@ -138,34 +164,98 @@ class OnnxPolicy:
         input_shape = self.session.get_inputs()[0].shape
         output_shape = self.session.get_outputs()[0].shape
         if isinstance(input_shape[-1], int) and input_shape[-1] != self.obs_dim:
-            raise ValueError(f"ONNX input dim {input_shape[-1]} does not match configured obs dim {self.obs_dim}.")
+            raise ValueError(
+                f"ONNX input dim {input_shape[-1]} does not match configured obs dim {self.obs_dim}."
+            )
         if isinstance(output_shape[-1], int) and output_shape[-1] != self.action_dim:
-            raise ValueError(f"ONNX output dim {output_shape[-1]} does not match configured action dim {self.action_dim}.")
+            raise ValueError(
+                f"ONNX output dim {output_shape[-1]} does not match configured action dim {self.action_dim}."
+            )
 
     def __call__(self, obs: np.ndarray) -> np.ndarray:
         obs_batch = obs.astype(np.float32, copy=False).reshape(1, -1)
         action = self.session.run([self.output_name], {self.input_name: obs_batch})[0]
         action = np.asarray(action, dtype=np.float32).reshape(-1)
         if action.shape[0] != self.action_dim:
-            raise ValueError(f"Policy returned {action.shape[0]} actions, expected {self.action_dim}.")
+            raise ValueError(
+                f"Policy returned {action.shape[0]} actions, expected {self.action_dim}."
+            )
         if not np.all(np.isfinite(action)):
             raise FloatingPointError("Policy returned non-finite actions.")
         return action
 
 
+class ObservationHistory:
+    """Term-wise observation history matching Isaac Lab's flattened history layout."""
+
+    def __init__(self, term_dims: list[int], history_length: int):
+        self.term_dims = term_dims
+        self.history_length = max(1, int(history_length))
+        self._buffers: list[np.ndarray] | None = None
+
+    def reset(self) -> None:
+        self._buffers = None
+
+    def append_and_flatten(self, terms: list[np.ndarray]) -> np.ndarray:
+        if len(terms) != len(self.term_dims):
+            raise ValueError(
+                f"Expected {len(self.term_dims)} observation terms, got {len(terms)}."
+            )
+
+        normalized_terms = []
+        for term, expected_dim in zip(terms, self.term_dims):
+            term = np.asarray(term, dtype=np.float32).reshape(-1)
+            if term.shape[0] != expected_dim:
+                raise ValueError(
+                    f"Observation term dim {term.shape[0]} does not match expected {expected_dim}."
+                )
+            normalized_terms.append(term)
+
+        if self._buffers is None:
+            self._buffers = [
+                np.repeat(term[None, :], self.history_length, axis=0)
+                for term in normalized_terms
+            ]
+        else:
+            for buffer, term in zip(self._buffers, normalized_terms):
+                buffer[:-1] = buffer[1:]
+                buffer[-1] = term
+
+        return np.concatenate([buffer.reshape(-1) for buffer in self._buffers]).astype(
+            np.float32
+        )
+
+
 class MujocoSim2Sim:
-    def __init__(self, cfg: dict[str, Any], urdf_path: Path, policy_path: Path, height_scan_value: float | None):
+    def __init__(
+        self,
+        cfg: dict[str, Any],
+        urdf_path: Path,
+        policy_path: Path,
+        _height_scan_value: float | None,
+    ):
         self.cfg = cfg
         self.urdf_path = urdf_path
         self.policy_cfg = cfg["policy"]
         self.sim_cfg = cfg["simulation"]
         self.control_cfg = cfg["control"]
         self.joint_names = list(cfg["joint_order"])
-        self.default_joint_pos = np.array([cfg["default_joint_pos"][name] for name in self.joint_names], dtype=np.float64)
+        self.default_joint_pos = np.array(
+            [cfg["default_joint_pos"][name] for name in self.joint_names],
+            dtype=np.float64,
+        )
         self.last_action = np.zeros(len(self.joint_names), dtype=np.float32)
         self.target_joint_pos = self.default_joint_pos.copy()
-        self.height_scan_value = (
-            float(height_scan_value) if height_scan_value is not None else float(self.policy_cfg["height_scan_value"])
+        self.obs_history = ObservationHistory(
+            term_dims=[
+                3,
+                3,
+                3,
+                len(self.joint_names),
+                len(self.joint_names),
+                len(self.joint_names),
+            ],
+            history_length=int(self.policy_cfg.get("observation_history_length", 1)),
         )
 
         if not urdf_path.exists():
@@ -186,13 +276,18 @@ class MujocoSim2Sim:
 
     def _load_model(self):
         model = mujoco.MjModel.from_xml_path(str(self.urdf_path))
-        if self._model_has_free_joint(model) or not bool(self.sim_cfg.get("add_free_joint_if_missing", True)):
+        if self._model_has_free_joint(model) or not bool(
+            self.sim_cfg.get("add_free_joint_if_missing", True)
+        ):
             return model
         return self._load_model_with_free_joint()
 
     @staticmethod
     def _model_has_free_joint(model) -> bool:
-        return any(model.jnt_type[joint_id] == mujoco.mjtJoint.mjJNT_FREE for joint_id in range(model.njnt))
+        return any(
+            model.jnt_type[joint_id] == mujoco.mjtJoint.mjJNT_FREE
+            for joint_id in range(model.njnt)
+        )
 
     def _load_model_with_free_joint(self):
         tree = ET.parse(self.urdf_path)
@@ -204,25 +299,33 @@ class MujocoSim2Sim:
             self._ensure_ground_collision(world)
         existing = robot.find("./joint[@name='floating_base']")
         if existing is None:
-            joint = ET.SubElement(robot, "joint", {"name": "floating_base", "type": "floating"})
+            joint = ET.SubElement(
+                robot, "joint", {"name": "floating_base", "type": "floating"}
+            )
             ET.SubElement(joint, "parent", {"link": "world"})
             ET.SubElement(joint, "child", {"link": "base_link"})
             ET.SubElement(joint, "origin", {"xyz": "0 0 0", "rpy": "0 0 0"})
-        with tempfile.NamedTemporaryFile("wb", suffix=".urdf", delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            "wb", suffix=".urdf", delete=False
+        ) as tmp_file:
             tmp_path = Path(tmp_file.name)
             tree.write(tmp_file, encoding="utf-8", xml_declaration=True)
         try:
             model = mujoco.MjModel.from_xml_path(str(tmp_path))
         finally:
             tmp_path.unlink(missing_ok=True)
-        print("[info] Added temporary floating_base joint for MuJoCo free-base simulation.")
+        print(
+            "[info] Added temporary floating_base joint for MuJoCo free-base simulation."
+        )
         return model
 
     def _ensure_ground_collision(self, world: ET.Element) -> None:
         if world.find("./collision[@name='sim2sim_ground_collision']") is None:
             sx, sy, sz = self.sim_cfg.get("ground_size", [100.0, 100.0, 0.01])
             z = -0.5 * float(sz)
-            collision = ET.SubElement(world, "collision", {"name": "sim2sim_ground_collision"})
+            collision = ET.SubElement(
+                world, "collision", {"name": "sim2sim_ground_collision"}
+            )
             ET.SubElement(collision, "origin", {"xyz": f"0 0 {z}", "rpy": "0 0 0"})
             geometry = ET.SubElement(collision, "geometry")
             ET.SubElement(geometry, "box", {"size": f"{sx} {sy} {sz}"})
@@ -237,7 +340,9 @@ class MujocoSim2Sim:
     def _resolve_free_joint(self) -> tuple[int | None, int | None]:
         for joint_id in range(self.model.njnt):
             if self.model.jnt_type[joint_id] == mujoco.mjtJoint.mjJNT_FREE:
-                return int(self.model.jnt_qposadr[joint_id]), int(self.model.jnt_dofadr[joint_id])
+                return int(self.model.jnt_qposadr[joint_id]), int(
+                    self.model.jnt_dofadr[joint_id]
+                )
         return None, None
 
     def _resolve_joints(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -247,7 +352,9 @@ class MujocoSim2Sim:
         for name in self.joint_names:
             joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
             if joint_id < 0:
-                raise ValueError(f"Joint '{name}' from config was not found in the MuJoCo model.")
+                raise ValueError(
+                    f"Joint '{name}' from config was not found in the MuJoCo model."
+                )
             if self.model.jnt_type[joint_id] != mujoco.mjtJoint.mjJNT_HINGE:
                 raise ValueError(f"Joint '{name}' is not a hinge joint in MuJoCo.")
             joint_ids.append(joint_id)
@@ -261,48 +368,53 @@ class MujocoSim2Sim:
             self.data.qpos[self.free_qpos_addr : self.free_qpos_addr + 3] = np.array(
                 self.sim_cfg["initial_base_pos"], dtype=np.float64
             )
-            self.data.qpos[self.free_qpos_addr + 3 : self.free_qpos_addr + 7] = np.array(
-                self.sim_cfg["initial_base_quat_wxyz"], dtype=np.float64
+            self.data.qpos[self.free_qpos_addr + 3 : self.free_qpos_addr + 7] = (
+                np.array(self.sim_cfg["initial_base_quat_wxyz"], dtype=np.float64)
             )
         else:
-            print("[warn] MuJoCo model does not expose a free base qpos; locomotion may be fixed-base.")
+            print(
+                "[warn] MuJoCo model does not expose a free base qpos; locomotion may be fixed-base."
+            )
         self.data.qpos[self.qpos_addr] = self.default_joint_pos
         self.data.qvel[:] = 0.0
         self.last_action[:] = 0.0
         self.target_joint_pos = self.default_joint_pos.copy()
+        self.obs_history.reset()
         self.data.qfrc_applied[:] = 0.0
         mujoco.mj_forward(self.model, self.data)
 
     def make_observation(self, command: np.ndarray) -> np.ndarray:
         if self.free_qpos_addr is not None and self.free_dof_addr is not None:
-            base_quat = self.data.qpos[self.free_qpos_addr + 3 : self.free_qpos_addr + 7].copy()
-            base_lin_vel = rotate_world_to_body(base_quat, self.data.qvel[self.free_dof_addr : self.free_dof_addr + 3])
+            base_quat = self.data.qpos[
+                self.free_qpos_addr + 3 : self.free_qpos_addr + 7
+            ].copy()
             base_ang_vel = rotate_world_to_body(
-                base_quat, self.data.qvel[self.free_dof_addr + 3 : self.free_dof_addr + 6]
+                base_quat,
+                self.data.qvel[self.free_dof_addr + 3 : self.free_dof_addr + 6],
             )
         else:
             base_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
-            base_lin_vel = np.zeros(3, dtype=np.float64)
             base_ang_vel = np.zeros(3, dtype=np.float64)
-        projected_gravity = rotate_world_to_body(base_quat, np.array([0.0, 0.0, -1.0], dtype=np.float64))
+        projected_gravity = rotate_world_to_body(
+            base_quat, np.array([0.0, 0.0, -1.0], dtype=np.float64)
+        )
         joint_pos_rel = self.data.qpos[self.qpos_addr] - self.default_joint_pos
         joint_vel = self.data.qvel[self.dof_addr]
-        height_scan = self._height_scan().astype(np.float32)
-        obs = np.concatenate(
+        obs = self.obs_history.append_and_flatten(
             [
-                base_lin_vel,
                 base_ang_vel,
                 projected_gravity,
                 command,
                 joint_pos_rel,
                 joint_vel,
                 self.last_action,
-                height_scan,
             ]
-        ).astype(np.float32)
+        )
         expected_dim = int(self.policy_cfg["observation_dim"])
         if obs.shape[0] != expected_dim:
-            raise ValueError(f"Constructed obs dim {obs.shape[0]} does not match expected {expected_dim}.")
+            raise ValueError(
+                f"Constructed obs dim {obs.shape[0]} does not match expected {expected_dim}."
+            )
         if not np.all(np.isfinite(obs)):
             raise FloatingPointError("Observation contains non-finite values.")
         return obs
@@ -311,7 +423,9 @@ class MujocoSim2Sim:
         obs = self.make_observation(command)
         action = self.policy(obs)
         action_scale = float(self.policy_cfg["action_scale"])
-        self.target_joint_pos = self.default_joint_pos + action_scale * action.astype(np.float64)
+        self.target_joint_pos = self.default_joint_pos + action_scale * action.astype(
+            np.float64
+        )
         torque = self.apply_pd_control()
         self.last_action = action
         self._last_trace = {
@@ -327,7 +441,9 @@ class MujocoSim2Sim:
             "base_ang_vel": self._base_ang_vel_b().astype(np.float32),
             "projected_gravity": self._projected_gravity().astype(np.float32),
             "joint_pos": self.data.qpos[self.qpos_addr].astype(np.float32),
-            "joint_pos_rel": (self.data.qpos[self.qpos_addr] - self.default_joint_pos).astype(np.float32),
+            "joint_pos_rel": (
+                self.data.qpos[self.qpos_addr] - self.default_joint_pos
+            ).astype(np.float32),
             "joint_vel": self.data.qvel[self.dof_addr].astype(np.float32),
         }
         return self._last_trace
@@ -364,15 +480,19 @@ class MujocoSim2Sim:
                 "default_joint_pos": self.default_joint_pos.astype(np.float32),
                 "physics_dt": physics_dt,
                 "control_dt": control_dt,
-                "height_scan_value": self.height_scan_value,
+                "observation_history_length": self.obs_history.history_length,
             }
         )
 
         if use_viewer:
             from mujoco import viewer as mujoco_viewer
 
-            with mujoco_viewer.launch_passive(self.model, self.data, key_callback=command_state.on_key) as viewer:
-                while viewer.is_running() and self._keep_running(start_sim_time, duration):
+            with mujoco_viewer.launch_passive(
+                self.model, self.data, key_callback=command_state.on_key
+            ) as viewer:
+                while viewer.is_running() and self._keep_running(
+                    start_sim_time, duration
+                ):
                     step_start = time.monotonic()
                     if next_control <= 0:
                         trace.append(self.step_policy(command_state.command))
@@ -407,9 +527,15 @@ class MujocoSim2Sim:
             time.sleep(sleep_time)
 
     def _check_finite(self) -> None:
-        if not np.all(np.isfinite(self.data.qpos)) or not np.all(np.isfinite(self.data.qvel)):
+        if not np.all(np.isfinite(self.data.qpos)) or not np.all(
+            np.isfinite(self.data.qvel)
+        ):
             raise FloatingPointError("MuJoCo state contains non-finite values.")
-        root_z = self.data.qpos[self.free_qpos_addr + 2] if self.free_qpos_addr is not None else math.inf
+        root_z = (
+            self.data.qpos[self.free_qpos_addr + 2]
+            if self.free_qpos_addr is not None
+            else math.inf
+        )
         if root_z < -1.0:
             raise FloatingPointError("Robot base fell below z=-1.0; stopping sim.")
 
@@ -426,24 +552,23 @@ class MujocoSim2Sim:
     def _base_lin_vel_b(self) -> np.ndarray:
         if self.free_qpos_addr is None or self.free_dof_addr is None:
             return np.zeros(3, dtype=np.float64)
-        return rotate_world_to_body(self._base_quat(), self.data.qvel[self.free_dof_addr : self.free_dof_addr + 3])
+        return rotate_world_to_body(
+            self._base_quat(),
+            self.data.qvel[self.free_dof_addr : self.free_dof_addr + 3],
+        )
 
     def _base_ang_vel_b(self) -> np.ndarray:
         if self.free_qpos_addr is None or self.free_dof_addr is None:
             return np.zeros(3, dtype=np.float64)
-        return rotate_world_to_body(self._base_quat(), self.data.qvel[self.free_dof_addr + 3 : self.free_dof_addr + 6])
+        return rotate_world_to_body(
+            self._base_quat(),
+            self.data.qvel[self.free_dof_addr + 3 : self.free_dof_addr + 6],
+        )
 
     def _projected_gravity(self) -> np.ndarray:
-        return rotate_world_to_body(self._base_quat(), np.array([0.0, 0.0, -1.0], dtype=np.float64))
-
-    def _height_scan(self) -> np.ndarray:
-        height_scan_dim = int(self.policy_cfg["height_scan_dim"])
-        mode = self.policy_cfg.get("height_scan_mode", "constant")
-        if mode == "flat_from_base_height":
-            value = float(self._base_pos()[2]) - 0.5
-        else:
-            value = self.height_scan_value
-        return np.full(height_scan_dim, value, dtype=np.float64)
+        return rotate_world_to_body(
+            self._base_quat(), np.array([0.0, 0.0, -1.0], dtype=np.float64)
+        )
 
 
 class TraceBuffer:
@@ -457,7 +582,11 @@ class TraceBuffer:
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        arrays = {key: np.stack(values, axis=0) for key, values in self._data.items() if values}
+        arrays = {
+            key: np.stack(values, axis=0)
+            for key, values in self._data.items()
+            if values
+        }
         for key, value in self.metadata.items():
             arrays[f"meta_{key}"] = np.asarray(value)
         np.savez_compressed(path, **arrays)
@@ -469,7 +598,9 @@ def main() -> None:
     config_path = resolve_path(args.config)
     cfg = load_config(config_path)
     urdf_path = resolve_path(args.urdf if args.urdf is not None else cfg["urdf_path"])
-    policy_path = resolve_path(args.policy if args.policy is not None else cfg["policy_path"])
+    policy_path = resolve_path(
+        args.policy if args.policy is not None else cfg["policy_path"]
+    )
     command_step = cfg["policy"]["command_step"]
     command_state = CommandState(
         default_command=np.array(cfg["policy"]["default_command"], dtype=np.float32),
@@ -478,11 +609,23 @@ def main() -> None:
         angular_step=float(command_step["angular"]),
     )
 
-    runner = MujocoSim2Sim(cfg, urdf_path=urdf_path, policy_path=policy_path, height_scan_value=args.height_scan_value)
+    runner = MujocoSim2Sim(
+        cfg,
+        urdf_path=urdf_path,
+        policy_path=policy_path,
+        _height_scan_value=args.height_scan_value,
+    )
     print(f"[info] URDF: {urdf_path}")
     print(f"[info] Policy: {policy_path}")
-    print(f"[info] Initial command: vx={command_state.command[0]:.2f}, vy={command_state.command[1]:.2f}, wz={command_state.command[2]:.2f}")
-    runner.run(command_state, duration=args.duration, use_viewer=not args.no_viewer, log_path=args.log)
+    print(
+        f"[info] Initial command: vx={command_state.command[0]:.2f}, vy={command_state.command[1]:.2f}, wz={command_state.command[2]:.2f}"
+    )
+    runner.run(
+        command_state,
+        duration=args.duration,
+        use_viewer=not args.no_viewer,
+        log_path=args.log,
+    )
 
 
 if __name__ == "__main__":

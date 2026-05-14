@@ -11,11 +11,11 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 5000
-    save_interval = 100
-    experiment_name = "my_quad_flat_v2"
+    max_iterations = 6000
+    save_interval = 1000
+    experiment_name = "my_quad_sim2real_imu_v1"
     policy = RslRlPpoActorCriticCfg(
-        init_noise_std=0.8,
+        init_noise_std=0.6,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",

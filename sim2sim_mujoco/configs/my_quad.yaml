@@ -1,6 +1,7 @@
 # Paths are resolved relative to the repository root unless absolute.
 urdf_path: source/rl_first/rl_first/assets/robot/my_quad/my_12dof_quadruped.urdf
-policy_path: logs/rsl_rl/my_quad_flat_v2/2026-05-08_20-09-17/exported/policy.onnx
+# Update this after retraining/exporting the 135-dim IMU-only policy, or pass --policy.
+policy_path: logs/rsl_rl/my_quad_sim2real_imu_v1/latest/exported/policy.onnx
 
 simulation:
   physics_dt: 0.005
@@ -12,20 +13,19 @@ simulation:
   initial_base_quat_wxyz: [1.0, 0.0, 0.0, 0.0]
 
 policy:
-  observation_dim: 235
+  observation_dim: 135
+  base_observation_dim: 45
+  observation_history_length: 3
   action_dim: 12
-  action_scale: 0.3
-  height_scan_dim: 187
-  height_scan_mode: flat_from_base_height
-  height_scan_value: 0.0
+  action_scale: 0.2
   default_command: [0.2, 0.0, 0.0]
   command_step:
     linear: 0.05
     angular: 0.05
   command_limits:
-    lin_vel_x: [-0.3, 0.6]
-    lin_vel_y: [-0.15, 0.15]
-    ang_vel_z: [-0.5, 0.5]
+    lin_vel_x: [-0.25, 0.45]
+    lin_vel_y: [-0.10, 0.10]
+    ang_vel_z: [-0.35, 0.35]
 
 control:
   kp: 20.0

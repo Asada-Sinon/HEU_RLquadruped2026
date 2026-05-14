@@ -198,7 +198,7 @@ def _make_trace_nominal(env_cfg):
     if hasattr(env_cfg.observations, "policy"):
         env_cfg.observations.policy.enable_corruption = False
     if hasattr(env_cfg, "events"):
-        for name in ("physics_material", "add_base_mass", "base_com", "push_robot"):
+        for name in ("physics_material", "actuator_gains", "joint_parameters", "add_base_mass", "base_com", "push_robot"):
             if hasattr(env_cfg.events, name):
                 setattr(env_cfg.events, name, None)
         if hasattr(env_cfg.events, "reset_base") and env_cfg.events.reset_base is not None:
@@ -212,7 +212,7 @@ def _make_trace_nominal(env_cfg):
                 "yaw": (0.0, 0.0),
             }
         if hasattr(env_cfg.events, "reset_robot_joints") and env_cfg.events.reset_robot_joints is not None:
-            env_cfg.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+            env_cfg.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
             env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
 
 

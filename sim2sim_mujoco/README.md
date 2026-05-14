@@ -14,7 +14,7 @@ python -m pip install -r sim2sim_mujoco/requirements.txt
 
 ## Run
 
-默认使用当前项目里的机器人 URDF 和最新 `my_quad_flat_v2` 导出策略：
+默认使用当前项目里的机器人 URDF。策略路径需要指向重新训练导出的 `my_quad_sim2real_imu_v1` ONNX：
 
 ```bash
 python sim2sim_mujoco/run_mujoco.py --config sim2sim_mujoco/configs/my_quad.yaml
@@ -49,16 +49,16 @@ python sim2sim_mujoco/run_mujoco.py --urdf path/to/robot.urdf
 观测顺序按 IsaacLab 训练配置构造：
 
 ```text
-base_lin_vel, base_ang_vel, projected_gravity, velocity_commands,
-joint_pos_rel, joint_vel_rel, last_action, height_scan
+base_ang_vel, projected_gravity, velocity_commands,
+joint_pos_rel, joint_vel_rel, last_action
 ```
 
-当前策略训练时包含 `height_scan`，这里先用固定平地值填充 187 维高度扫描，占位值默认是 `0.0`，可通过 `--height-scan-value` 调整。这适合先做平地 sim2sim 排查模型、关节顺序、动作缩放和 PD 控制；后续上实机前建议重新训练一个不依赖 `height_scan` 的策略。
+每个 observation term 保留 3 帧历史，按 IsaacLab 的 term-wise history 展平，所以策略输入维度是 `45 * 3 = 135`。当前策略不再使用 `base_lin_vel` 或 `height_scan`，只依赖实机可提供的 IMU 角速度/重力方向、速度命令、关节编码器和上一步动作。
 
 控制频率按训练配置设置为 50 Hz：MuJoCo 物理步长 `0.005s`，策略每 `0.02s` 推理一次。动作转换为关节目标：
 
 ```text
-target_joint_pos = default_joint_pos + 0.3 * action
+target_joint_pos = default_joint_pos + 0.2 * action
 ```
 
 然后使用 PD 力矩控制，并裁剪到 `23.7 Nm`。
